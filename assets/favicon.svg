@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect width="64" height="64" rx="12" fill="#08111B"/>
+  <polygon points="19,12 45,12 58,32 45,52 19,52 6,32" fill="none" stroke="#DDF3FF" stroke-width="3" stroke-linejoin="round" stroke-dasharray="130 24"/>
+  <polygon points="2,22 10,19 6,29" fill="#E4315A"/>
+  <polygon points="12,12 20,9 16,19" fill="#E4315A" fill-opacity=".7"/>
+  <text x="34" y="41" text-anchor="middle" font-family="Arial, sans-serif" font-weight="700" font-size="24" fill="#DDF3FF">IF</text>
+</svg>

@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#08111B">
+<title>In Falsus ランダム選曲｜難易度・レベル・章で絞り込める非公式ツール</title>
+<meta name="description" content="In Falsus の楽曲（Tutorial除く）からランダムに選曲できる非公式ツール。MIN・EVO・ULT・FBDの難易度やレベル、章での絞り込み、曲・譜面ごとの除外、ネタバレ対策に対応しています。">
+<link rel="canonical" href="https://brock0745.github.io/InFalsus_Random/">
+
+<!-- Google Search Console の「HTMLタグ」確認用。コードを取得したら、下の行のコメントを外して貼り付けます -->
+<!-- <meta name="google-site-verification" content="ここに確認用コード"> -->
+
+<!-- SNS共有（OGP） -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="In Falsus ランダム選曲">
+<meta property="og:title" content="In Falsus ランダム選曲｜難易度・レベル・章で絞り込める非公式ツール">
+<meta property="og:description" content="In Falsus の楽曲（Tutorial除く）からランダムに選曲できる非公式ツール。MIN・EVO・ULT・FBDの難易度やレベル、章での絞り込み、曲・譜面ごとの除外、ネタバレ対策に対応しています。">
+<meta property="og:url" content="https://brock0745.github.io/InFalsus_Random/">
+<meta property="og:image" content="https://brock0745.github.io/InFalsus_Random/assets/ogp.png">
+<meta property="og:locale" content="ja_JP">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="In Falsus ランダム選曲｜難易度・レベル・章で絞り込める非公式ツール">
+<meta name="twitter:description" content="In Falsus の楽曲（Tutorial除く）からランダムに選曲できる非公式ツール。MIN・EVO・ULT・FBDの難易度やレベル、章での絞り込み、曲・譜面ごとの除外、ネタバレ対策に対応しています。">
+<meta name="twitter:image" content="https://brock0745.github.io/InFalsus_Random/assets/ogp.png">
+
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oxanium:wght@400;600;700&family=Zen+Kaku+Gothic+New:wght@300;400;500;700&display=swap">
+<link rel="stylesheet" href="style.css">
+
+<!-- 検索エンジン向けの構造化データ -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "In Falsus ランダム選曲",
+  "url": "https://brock0745.github.io/InFalsus_Random/",
+  "description": "In Falsus の楽曲（Tutorial除く）からランダムに選曲できる非公式ツール。MIN・EVO・ULT・FBDの難易度やレベル、章での絞り込み、曲・譜面ごとの除外、ネタバレ対策に対応しています。",
+  "applicationCategory": "UtilitiesApplication",
+  "operatingSystem": "Any",
+  "inLanguage": "ja",
+  "isAccessibleForFree": true
+}
+</script>
+</head>
+<body id="top">
+<div class="shards" aria-hidden="true"></div>
+<main class="wrap">
+
+  <h1 class="gh page-title">In Falsus ランダム選曲</h1>
+  <p class="caption" style="margin:-4px 2px 0">Tutorialを除く曲からランダムに選びます</p>
+
+  <h3 class="gh" id="sec-progress">クリア済みの章</h3>
+  <div class="group progress">
+    <div class="row">
+      <div class="rowhead"><span>ここまでクリアした</span><span class="hint">それ以降の曲は隠れます</span></div>
+      <div class="chips" id="progressChips" role="radiogroup" aria-label="クリア済みの章"></div>
+      <p class="progress-info" id="progressInfo"></p>
+    </div>
+  </div>
+
+  <section class="stage" id="stage" aria-live="polite">
+    <div class="stage-grid">
+      <div class="frame"><div class="jacket" id="jacket"></div></div>
+      <div class="info">
+        <h2 id="songTitle" class="redacted">▮▮▮▮▮▮▮▮</h2>
+        <p class="ja" id="songJa"></p>
+        <dl class="memo">
+          <div><dt>アーティスト</dt><dd id="songArtist"></dd></div>
+          <div><dt>収録章</dt><dd id="arc"></dd></div>
+        </dl>
+        <div class="charts" id="charts"></div>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="btn primary" id="drawBtn" type="button" disabled>抽選する</button>
+      <button class="btn secondary" id="excludeBtn" type="button" disabled>この曲を除外</button>
+    </div>
+    <div class="actions more" id="chartActions" hidden>
+      <button class="btn secondary" id="excludeChartBtn" type="button">この譜面を除外</button>
+    </div>
+    <p class="status" id="status" role="status"></p>
+  </section>
+
+  <div class="seg mode" id="modeSeg" role="group" aria-label="抽選の単位">
+    <button type="button" data-mode="song" aria-pressed="true">曲を選ぶ</button>
+    <button type="button" data-mode="chart" aria-pressed="false">譜面を選ぶ</button>
+  </div>
+  <p class="caption" id="modeCaption"></p>
+
+  <h3 class="gh" id="sec-filter">絞り込み</h3>
+  <div class="group">
+    <div class="row">
+      <div class="rowhead"><span>難易度</span><span class="hint">複数選択できます</span></div>
+      <div class="chips tiers" id="tierChips"></div>
+    </div>
+    <div class="row">
+      <div class="rowhead"><span>レベル</span><span class="hint">複数選択できます</span></div>
+      <div class="chips levels" id="levelChips"></div>
+    </div>
+    <div class="row" id="arcRow">
+      <div class="rowhead"><span>章</span><span class="hint">複数選択できます</span></div>
+      <div class="chips arcs" id="arcChips"></div>
+    </div>
+    <div class="row split">
+      <span id="poolInfo"></span>
+      <button class="link" id="clearFilters" type="button">条件をクリア</button>
+    </div>
+    <div class="row split">
+      <div>
+        <div class="lbl">出た曲を重複させない</div>
+        <div class="hint" id="drawnInfo"></div>
+      </div>
+      <div class="split">
+        <button class="link" id="resetDrawn" type="button">リセット</button>
+        <button class="switch" id="noRepeat" type="button" role="switch" aria-checked="false" aria-label="出た曲を重複させない"><span></span></button>
+      </div>
+    </div>
+  </div>
+
+  <h3 class="gh" id="sec-ex">除外する曲 <span class="badge" id="exCount">0</span></h3>
+  <div class="group">
+    <div class="row" style="padding:0">
+      <label class="search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input id="q" type="search" placeholder="曲名・アーティストで検索" autocomplete="off" enterkeyhint="search">
+      </label>
+    </div>
+    <div class="row split">
+      <div class="seg small" id="exView" role="group" aria-label="表示する曲">
+        <button type="button" data-view="all" aria-pressed="true">すべて</button>
+        <button type="button" data-view="ex" aria-pressed="false">除外中</button>
+      </div>
+      <button class="link" id="exClear" type="button">すべて解除</button>
+    </div>
+    <div class="list" id="exList"></div>
+  </div>
+  <p class="caption">右の六角形で曲ごと、下の難易度ボタンで譜面ごとに除外できます。</p>
+
+  <h3 class="gh" id="sec-log">抽選ログ</h3>
+  <div class="group" id="history"></div>
+
+  <footer class="foot-wrap">
+    <div class="foot-row">
+      <details>
+        <summary>ジャケット画像の追加方法</summary>
+        <p><code>jackets</code> フォルダに、<code>曲ID.webp</code> の名前で画像を入れるだけで表示されます（例: <code>jackets/cryogenic.webp</code>）。</p>
+        <p>曲IDは <code>songs.json</code> の <code>id</code> です。下のボタンで一覧をコピーできます。拡張子を変えたい場合は <code>app.js</code> 冒頭の <code>CONFIG.jacket.ext</code> を書き換えてください。</p>
+        <p><button class="link" id="copyIds" type="button">曲ID一覧をコピー</button></p>
+        <p><button class="link" id="resetSpoiler" type="button">ネタバレ確認の記録をリセット（未クリアに戻します）</button></p>
+      </details>
+      <a class="totop" href="#top">
+        <svg viewBox="0 0 18 10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 8.5 9 2l7 6.5"/></svg>
+        <span>トップに戻る</span>
+      </a>
+    </div>
+    <p class="foot">非公式のファンメイドです。曲・譜面レベルは infalsus.org の楽曲一覧をもとにしています。<span id="dataInfo"></span></p>
+  </footer>
+
+</main>
+
+<dialog id="spoilerDialog" aria-labelledby="spTitle" aria-describedby="spBody">
+  <div class="dlg">
+    <h2 class="dlg-title">
+      <svg viewBox="0 0 20 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M10 1.5 18.5 16.5H1.5Z"/><path d="M10 7v4.5M10 13.6v.4" stroke-linecap="round"/></svg>
+      <span id="spTitle">Arc 1 までの曲を表示</span>
+    </h2>
+    <p class="dlg-body" id="spBody">該当の章のネタバレが含まれます。これは曲やコンポーザーのみならず、ジャケットでのキャラから今後のストーリーのネタバレも含まれます。それでも表示してよろしいですか？</p>
+    <label class="check">
+      <input type="checkbox" id="spSkip">
+      <span class="hexbox" aria-hidden="true"></span>
+      <span>二度とほかの章でも表示しない</span>
+    </label>
+    <div class="dlg-actions">
+      <button class="btn secondary" id="spCancel" type="button" autofocus>やめる</button>
+      <button class="btn primary" id="spOk" type="button">表示する</button>
+    </div>
+  </div>
+</dialog>
+
+<noscript><p style="padding:16px">このツールの利用には JavaScript が必要です。</p></noscript>
+<script src="app.js"></script>
+</body>
+</html>
