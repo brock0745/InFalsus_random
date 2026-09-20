@@ -24,6 +24,7 @@ ROOT = Path(__file__).resolve().parent
 SONGS = ROOT / "songs.json"
 ARCS = [0, 1, 2, 2.5, 3, 4]
 TIERS = ["MIN", "EVO", "ULT", "FBD"]
+IMG_EXT = (".webp", ".png", ".jpg", ".jpeg")
 FULLWIDTH = set("，、：；“”‘’（）［］｛｝")   # JSON の記号として使ってはいけない全角文字
 
 
@@ -107,16 +108,37 @@ def cmd_check(_args):
         if len(vals) == 4 and vals != sorted(vals):
             print("  △ %s: MIN→EVO→ULT→FBD の順にレベルが上がっていません %s" % (label, vals)); warnings += 1
 
-    # ジャケットの過不足（情報のみ）
+    # ジャケットの確認（"jacket" にファイル名を書いた曲と、曲ID名の画像の両方に対応）
     jdir = ROOT / "jackets"
-    have = {p.stem for p in jdir.glob("*") if p.suffix.lower() in (".webp", ".png", ".jpg", ".jpeg")} if jdir.exists() else set()
-    missing = sorted(seen - have)
-    extra = sorted(have - seen)
+    files = {p.name for p in jdir.iterdir() if p.suffix.lower() in IMG_EXT} if jdir.exists() else set()
+    stems = {}
+    for f in files:
+        stems.setdefault(Path(f).stem, []).append(f)
+    used, missing = set(), []
+    for s in songs:
+        if not s.get("id"):
+            continue
+        j = s.get("jacket")
+        if j:
+            name = j.split("/")[-1]
+            if name in files:
+                used.add(name)
+            else:
+                print("  ✗ %s: jacket「%s」が jackets フォルダにありません（大文字小文字・拡張子も確認）" % (s["id"], j)); errors += 1
+        elif s["id"] in stems:
+            used.update(stems[s["id"]])
+            bad = [f for f in stems[s["id"]] if Path(f).suffix != Path(f).suffix.lower()]
+            if bad:
+                print("  △ %s: 拡張子が大文字です（GitHub Pages では読み込めません）→ 小文字にしてください" % ", ".join(bad)); warnings += 1
+        else:
+            missing.append(s["id"])
+    extra = sorted(files - used)
     if extra:
-        print("  △ jackets にあるが songs.json に無い画像（ファイル名の誤りかも）: " + ", ".join(extra)); warnings += 1
+        print("  △ どの曲にも使われていない画像（ファイル名の誤りかも）: " + ", ".join(extra)); warnings += 1
+    have = len(seen) - len(missing)
 
-    print("曲数: %d / エラー: %d / 注意: %d / ジャケット: %d 枚あり・%d 曲分が未登録"
-          % (len(songs), errors, warnings, len(seen & have), len(missing)))
+    print("曲数: %d / エラー: %d / 注意: %d / ジャケット: %d 曲分あり・%d 曲分が未登録"
+          % (len(songs), errors, warnings, have, len(missing)))
     if errors or not ok:
         print("→ 直してからもう一度実行してください。")
         return 1
@@ -166,7 +188,7 @@ def cmd_add(args):
     data["updated"] = datetime.date.today().isoformat()
     SONGS.write_text(format_songs_file(data), encoding="utf-8")
     print("追加しました:", song["title"], "→ songs.json（%d曲）" % len(songs))
-    print("ジャケットは jackets/%s.webp に入れてください。" % args.id)
+    print("ジャケットは jackets/%s.（webp か png か jpg）の名前で入れるか、songs.json の jacket にファイル名を書いてください。" % args.id)
     return 0
 
 

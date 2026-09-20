@@ -19,11 +19,14 @@
   const CONFIG = {
     songsUrl: 'songs.json',              // 曲データ
     storageKey: 'ifalsus-random:v2',     // 保存キー（構造を変えたら v3 などに上げる）
+    // ジャケット画像の探し方（優先順位の高い順）
+    //   1. songs.json の "jacket" にファイル名を書いた曲 … jackets/ の中のそのファイル（拡張子は自由）
+    //   2. 書いていない曲 … jackets/<曲ID>.<拡張子> を exts の順に探す
     jacket: {
       basePath: 'jackets/',              // ジャケット画像のフォルダ
-      ext: 'webp',                       // 拡張子（png にするなら 'png'）
-      auto: true,                        // true: jackets/<曲ID>.<ext> を自動で探す
-      overrides: {}                      // 曲ごとに別のURLを指定したいとき { "曲ID": "URL" }
+      exts: ['webp', 'png', 'jpg', 'jpeg'],  // 自動で探すときの拡張子（小文字。この順に試す）
+      auto: true,                        // false にすると 2. の自動探索をしない
+      overrides: {}                      // 曲ごとに別のURLを直接指定したいとき { "曲ID": "URL" }
     }
   };
   const JACKET = CONFIG.jacket;
@@ -42,7 +45,8 @@
      ------------------------------------------------------------------ */
   let SONGS = [];
   let BY_ID = new Map();
-  const missingJackets = new Set();      // 画像が無かった曲ID（何度も取りに行かない）
+  const missingJackets = new Set();      // 自動探索で画像が見つからなかった曲ID（何度も取りに行かない）
+  const foundJacket = new Map();         // 自動探索で見つかった画像のURL（次回はそれだけ取りに行く）
 
   async function loadData() {
     // 単一ファイル版（プレビュー用）では、データがあらかじめ window に埋め込まれます
@@ -76,18 +80,27 @@
       return {
         id: String(r.id), title: String(r.title), ja: r.ja || '', artist: r.artist || '',
         arc, lv: { MIN: lv.MIN, EVO: lv.EVO, ULT: lv.ULT, FBD: lv.FBD },
-        jacket: r.jacket || null
+        jacket: typeof r.jacket === 'string' && r.jacket.trim() ? r.jacket.trim() : null
       };
     });
   }
 
-  function jacketUrl(song) {
-    if (JACKET.overrides[song.id]) return JACKET.overrides[song.id];
-    if (song.jacket) return song.jacket;
+  // songs.json の "jacket" の値をURLにする。
+  //   "cryogenic.png"        → jackets/cryogenic.png（ファイル名だけなら basePath を付ける）
+  //   "sub/x.png" / "https://…" / "data:…" → そのまま使う
+  function resolveJacketPath(p) {
+    return /^(https?:|data:|\/)/i.test(p) || p.includes('/') ? p : JACKET.basePath + p;
+  }
+
+  // 画像の候補URLを、試す順に返す（空なら画像なし＝プレースホルダー）
+  function jacketCandidates(song) {
+    if (JACKET.overrides[song.id]) return { urls: [JACKET.overrides[song.id]], auto: false };
+    if (song.jacket) return { urls: [resolveJacketPath(song.jacket)], auto: false };
     if (JACKET.auto && JACKET.basePath && !missingJackets.has(song.id)) {
-      return JACKET.basePath + song.id + '.' + JACKET.ext;
+      if (foundJacket.has(song.id)) return { urls: [foundJacket.get(song.id)], auto: true };
+      return { urls: JACKET.exts.map(e => JACKET.basePath + song.id + '.' + e), auto: true };
     }
-    return null;
+    return { urls: [], auto: false };
   }
 
   /* ------------------------------------------------------------------
@@ -297,16 +310,30 @@
     ph.append(h('span', { text: initial }));
     box.append(ph);
     // 抽選中のアニメーションでは画像を取りに行かない（無駄な通信を避ける）
-    const url = song && !opts.noImage ? jacketUrl(song) : null;
-    if (url) {
-      const img = new Image();
-      img.alt = song.title + ' のジャケット';
-      img.decoding = 'async';
-      img.addEventListener('load', () => img.classList.add('ok'));
-      img.addEventListener('error', () => { missingJackets.add(song.id); img.remove(); });
-      img.src = url;
-      box.append(img);
+    if (song && !opts.noImage) {
+      const c = jacketCandidates(song);
+      if (c.urls.length) loadJacket(box, song, c.urls, c.auto);
     }
+  }
+
+  // 候補URLを先頭から順に試す。読み込めたらそれを表示し、失敗したら次の候補へ。
+  function loadJacket(box, song, urls, auto) {
+    const url = urls[0];
+    const img = new Image();
+    img.alt = song.title + ' のジャケット';
+    img.decoding = 'async';
+    img.addEventListener('load', () => {
+      img.classList.add('ok');
+      if (auto) foundJacket.set(song.id, url);
+    });
+    img.addEventListener('error', () => {
+      const stillShown = img.isConnected;   // 別の曲に切り替わっていたら続けない
+      img.remove();
+      if (urls.length > 1) { if (stillShown) loadJacket(box, song, urls.slice(1), auto); }
+      else if (auto) missingJackets.add(song.id);
+    });
+    img.src = url;
+    box.append(img);
   }
 
   function paintChips(song, pickedTier) {
@@ -827,6 +854,7 @@
   window.IFR = {
     CONFIG, state,
     get songs() { return SONGS; },
+    jacketCandidates,
     ids: () => SONGS.map(s => s.id + '\t' + s.title).join('\n')
   };
 

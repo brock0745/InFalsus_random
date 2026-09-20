@@ -1,51 +1,98 @@
-# In Falsus ランダム選曲（非公式）
+# jackets フォルダ
 
-In Falsus の楽曲からランダムに選曲するファンメイドのツールです。GitHub Pages でそのまま公開できます（ビルド不要）。
+ジャケット画像をここに入れると、結果カードに表示されます。**拡張子は webp / png / jpg のどれでも構いません**（変換は不要です）。
 
-## フォルダ構成
+## 入れ方は2通り
 
-```
-index.html      画面の中身（HTML）とSEO用のメタ情報
-style.css       見た目（CSS）。色は冒頭の :root で変更
-app.js          動き（JavaScript）。設定は冒頭の CONFIG
-songs.json      曲データ（曲名・アーティスト・章・4難易度のレベル）
-sitemap.xml     検索エンジン向けのページ一覧
-update.py       songs.json の検査・曲の追加・公開URLの置換
-assets/         背景の破片・favicon・SNS共有用画像
-jackets/        ジャケット画像（曲ID.webp）
-```
+**方法1: ファイル名を「曲ID.拡張子」にする（songs.json の編集不要）**
+例: `cryogenic.png` / `hyalouyne.webp` / `zetta.jpg`
+`webp` → `png` → `jpg` → `jpeg` の順に自動で探します。
 
-## 曲データの更新
-
-新曲が追加されたときは、`songs.json` に1行足します。
-
+**方法2: songs.json に「jacket」でファイル名を書く（名前は自由）**
 ```json
-{"id": "new-song", "title": "New Song", "artist": "Someone", "arc": 4, "lv": {"MIN": 3, "EVO": 6, "ULT": 10, "FBD": 12}},
+{"id": "cryogenic", "title": "Cryogenic", "artist": "…", "arc": 0, "lv": {"MIN": 2, "EVO": 5, "ULT": 9, "FBD": 12}, "jacket": "cover_001.png"},
 ```
+フォルダ名は付けず、ファイル名だけを書きます。書いた曲は、方法1より優先されます。
 
-- `arc` は Base=0、Arc 1=1、Arc 2=2、Arc 2.5=2.5、Arc 3=3、Arc 4=4。
-- 日本語表記があるときは `"ja": "..."` を足します。
-- **書式ミスに注意**: 引用符は半角の `"`、区切りのカンマ・コロンも半角、最後の要素の後ろにカンマを付けない。
-- 編集したら `python update.py check` で検査できます。コマンドで追加する場合は次のとおりです。
+## 注意
 
-```
-python update.py add --id new-song --title "New Song" --artist "Someone" --arc 4 --lv 3 6 10 12
-```
+- ファイル名の**大文字・小文字は区別**されます（GitHub Pages のため）。`Cryogenic.PNG` と `cryogenic.png` は別物です。拡張子は小文字にしてください。
+- 画像は正方形がきれいに収まります（縦横比が違うと中央で切り抜かれます）。
+- 表示サイズは最大でも約 240px です。原画が数MBある場合は、1000px 前後に縮小すると読み込みが速くなります。
+- 画像が無い曲は、自動でプレースホルダー表示になります。
+- 画像の扱いは、公式の二次創作ガイドラインの範囲で行ってください。
 
-## 手元で動かす
+## 曲ID一覧
 
-`songs.json` を読み込むため、`index.html` をダブルクリックで開くだけでは動きません。フォルダで次を実行し、http://localhost:8000/ を開きます。
-
-```
-python -m http.server 8000
-```
-
-## 公開（GitHub Pages）
-
-1. リポジトリを作り、このフォルダの中身をすべてアップロードします。
-2. Settings → Pages → Branch を `main` / `(root)` にして Save。
-3. 公開URLが決まったら `python update.py url https://ユーザー名.github.io/リポジトリ名/` を実行し、変更をコミットします。
-
-## 保存されるデータ
-
-除外リスト・進行状況・ネタバレ確認の記録などは、利用者のブラウザ（localStorage）にだけ保存されます。サーバーには送信しません。
+| 曲ID | 曲名 |
+|---|---|
+| `altered-edge` | Altered Edge |
+| `deep-into-the-vibe` | Deep Into The Vibe |
+| `f0-cha0s` | F0 CHA0S |
+| `latent-duality` | Latent Duality |
+| `memories-in-noise` | Memories in Noise |
+| `new-vision` | New Vision |
+| `transparency` | Transparency |
+| `wonderroom2-0` | WonderRoom2.0 |
+| `zfc` | ZFC |
+| `chronomia` | Chronomia |
+| `enigma` | Enigma |
+| `ffff` | FFFF |
+| `greyscale-city` | Greyscale City |
+| `hanabi` | Hanabi |
+| `init` | init() |
+| `moondiver` | M / O / O / N / D / I / V / E / R |
+| `minerva` | Minerva |
+| `sin-utopia` | Sin Utopia |
+| `with-truth` | With Truth |
+| `cylin` | cylin |
+| `everything` | Everything |
+| `kirapico-riot` | Kirapico Riot: Kirapicorin |
+| `lights-out` | Lights Out |
+| `memoire` | Mémoire |
+| `neonvision` | NEONViSION |
+| `papillon-blanc` | papillon blanc |
+| `primeval-texture` | Primeval Texture |
+| `things-i-treasure` | Things I Treasure |
+| `chaoticism-legacy` | Chaoticism Legacy |
+| `code-leviathan` | code:Leviathan |
+| `cold-sea` | Cold Sea |
+| `falling-shadow` | Falling Shadow |
+| `live-fast-die-young` | Live Fast Die Young |
+| `my-deadly-sins` | My Deadly Sins |
+| `re-flection` | Re:Flection |
+| `reconnect` | Reconnect |
+| `self-confrontation` | Self-confrontatioN |
+| `should-have-been` | Should have been |
+| `trajectory-of-hope` | Trajectory of Hope |
+| `vesper` | Vesper |
+| `yggthrasir` | yggthrasir |
+| `hidden-fbd15` | ▓ |
+| `albedo` | Albedo |
+| `chronophobia` | Chronophobia |
+| `destr0yer` | Destr0yer |
+| `exceed-mind-limit` | EXCEED MIND LIMIT |
+| `falsequre` | Falsequre |
+| `hollow` | Hollow |
+| `kiretsu` | KIRETSU |
+| `moonsliders` | Moonsliders |
+| `noct-idea` | Noct Idea |
+| `now-i-know` | Now I know |
+| `outer-justice` | Outer Justice |
+| `phylaxron` | PhylaXron |
+| `rainshower` | Rainshower |
+| `scarlet-espada` | Scarlet Espada |
+| `shadows-of-unknown` | Shadows of Unknown |
+| `tactom` | TACTOM |
+| `toccata-funebre` | Toccata Funebre |
+| `world-ender` | World Ender |
+| `zetta` | Zetta |
+| `a-la-mode` | à la mode |
+| `be-there` | Be There |
+| `cryogenic` | Cryogenic |
+| `cyaegha` | Cyaegha |
+| `forbidden-souls` | Forbidden Souls |
+| `ghost-ray` | Ghost Ray |
+| `hyalouyne` | Hyaloüyne |
+| `mirinae` | MIRINAE |
+| `ordirehv` | Ordirehv |
