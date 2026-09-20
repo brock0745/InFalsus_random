@@ -20,7 +20,8 @@
     songsUrl: 'songs.json',              // 曲データ
     storageKey: 'ifalsus-random:v2',     // 保存キー（構造を変えたら v3 などに上げる）
     // ジャケット画像の探し方（優先順位の高い順）
-    //   1. songs.json の "jacket" にファイル名を書いた曲 … jackets/ の中のそのファイル（拡張子は自由）
+    //   1. songs.json の "jacket" にファイル名を書いた曲 … jackets/ の中のそのファイル
+    //      （拡張子つきならそのファイル、拡張子なしなら exts の順に探す）
     //   2. 書いていない曲 … jackets/<曲ID>.<拡張子> を exts の順に探す
     jacket: {
       basePath: 'jackets/',              // ジャケット画像のフォルダ
@@ -85,17 +86,38 @@
     });
   }
 
-  // songs.json の "jacket" の値をURLにする。
-  //   "cryogenic.png"        → jackets/cryogenic.png（ファイル名だけなら basePath を付ける）
-  //   "sub/x.png" / "https://…" / "data:…" → そのまま使う
+  // 画像の拡張子として扱うもの（"jacket" の値がこれで終わっていれば「拡張子つき」）
+  const IMG_EXT_RE = /\.(webp|png|jpe?g|gif|avif|bmp)$/i;
+
+  // songs.json の "jacket" の値を、読み込み用のパスにする。
+  //   "cover.png"       → jackets/cover.png        （ファイル名だけなら basePath を付ける）
+  //   "sub/x.png"       → sub/x.png                 （フォルダ付きならそのまま）
+  //   "https://…" / "data:…" → そのまま
+  // 日本語や ( ) # などを含む名前も、ここで安全な形に直します。
   function resolveJacketPath(p) {
-    return /^(https?:|data:|\/)/i.test(p) || p.includes('/') ? p : JACKET.basePath + p;
+    if (/^(https?:|data:)/i.test(p)) return p;
+    const enc = p.split('/').map(encodeURIComponent).join('/');
+    return p.includes('/') ? enc : JACKET.basePath + enc;
   }
 
   // 画像の候補URLを、試す順に返す（空なら画像なし＝プレースホルダー）
+  //   auto:true の候補は「拡張子を順に試す」ので、見つかった/無かった結果を覚えておく。
   function jacketCandidates(song) {
     if (JACKET.overrides[song.id]) return { urls: [JACKET.overrides[song.id]], auto: false };
-    if (song.jacket) return { urls: [resolveJacketPath(song.jacket)], auto: false };
+
+    if (song.jacket) {
+      const p = song.jacket;
+      // 拡張子なしの指定（例: "Alterd_Edge"）→ 拡張子を exts の順に試す
+      if (!IMG_EXT_RE.test(p) && !/^(https?:|data:)/i.test(p)) {
+        if (missingJackets.has(song.id)) return { urls: [], auto: true };
+        if (foundJacket.has(song.id)) return { urls: [foundJacket.get(song.id)], auto: true };
+        const base = resolveJacketPath(p);
+        return { urls: JACKET.exts.map(e => base + '.' + e), auto: true };
+      }
+      return { urls: [resolveJacketPath(p)], auto: false };   // 拡張子つき → そのまま1つだけ
+    }
+
+    // "jacket" の指定なし → jackets/<曲ID>.<拡張子> を探す
     if (JACKET.auto && JACKET.basePath && !missingJackets.has(song.id)) {
       if (foundJacket.has(song.id)) return { urls: [foundJacket.get(song.id)], auto: true };
       return { urls: JACKET.exts.map(e => JACKET.basePath + song.id + '.' + e), auto: true };

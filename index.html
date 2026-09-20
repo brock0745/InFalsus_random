@@ -144,8 +144,10 @@
     <div class="foot-row">
       <details>
         <summary>ジャケット画像の追加方法</summary>
-        <p><code>jackets</code> フォルダに、<code>曲ID.webp</code> の名前で画像を入れるだけで表示されます（例: <code>jackets/cryogenic.webp</code>）。</p>
-        <p>曲IDは <code>songs.json</code> の <code>id</code> です。下のボタンで一覧をコピーできます。拡張子を変えたい場合は <code>app.js</code> 冒頭の <code>CONFIG.jacket.ext</code> を書き換えてください。</p>
+        <p><code>jackets</code> フォルダに画像を入れます。拡張子は <code>webp</code> / <code>png</code> / <code>jpg</code> のどれでも構いません。</p>
+        <p><strong>おすすめ（自動で対応づけ）</strong>: 画像を曲名に近い名前で <code>jackets</code> に入れ、手元で <code>python update.py jackets</code> を実行すると、<code>songs.json</code> の <code>jacket</code> に画像名が自動で書き込まれます。</p>
+        <p><strong>手で書く場合</strong>: <code>songs.json</code> の曲に <code>"jacket": "画像の名前"</code> を足します。拡張子は付けても付けなくても構いません（付けなければ webp → png → jpg → jpeg の順に探します）。</p>
+        <p><strong>名前を曲IDにする場合</strong>: <code>曲ID.拡張子</code>（例: <code>cryogenic.png</code>）なら <code>songs.json</code> の編集は不要です。拡張子は小文字にしてください。</p>
         <p><button class="link" id="copyIds" type="button">曲ID一覧をコピー</button></p>
         <p><button class="link" id="resetSpoiler" type="button">ネタバレ確認の記録をリセット（未クリアに戻します）</button></p>
       </details>

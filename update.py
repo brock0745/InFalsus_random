@@ -10,6 +10,11 @@
       曲を追加します（--lv は MIN EVO ULT FBD の順）。日本語表記があれば --ja "..." も付けます。
       同じ章の最後に入り、"updated" が今日の日付になります。
 
+  python update.py jackets [--dry-run] [--yes]
+      jackets フォルダの画像のファイル名を読み取り、曲名などから曲を判定して
+      songs.json の "jacket" に実際のファイル名（拡張子つき）を書き込みます。
+      綴りが少し違う名前（Alterd_Edge など）も候補として拾い、どの対応かを表示します。
+
   python update.py url https://ユーザー名.github.io/リポジトリ名/
       index.html と sitemap.xml に書かれている公開URLをまとめて置き換えます。
 """
@@ -18,13 +23,15 @@ import datetime
 import json
 import re
 import sys
+import unicodedata
+import difflib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 SONGS = ROOT / "songs.json"
 ARCS = [0, 1, 2, 2.5, 3, 4]
 TIERS = ["MIN", "EVO", "ULT", "FBD"]
-IMG_EXT = (".webp", ".png", ".jpg", ".jpeg")
+IMG_EXT = (".webp", ".png", ".jpg", ".jpeg", ".gif", ".avif", ".bmp")
 FULLWIDTH = set("，、：；“”‘’（）［］｛｝")   # JSON の記号として使ってはいけない全角文字
 
 
@@ -108,25 +115,39 @@ def cmd_check(_args):
         if len(vals) == 4 and vals != sorted(vals):
             print("  △ %s: MIN→EVO→ULT→FBD の順にレベルが上がっていません %s" % (label, vals)); warnings += 1
 
-    # ジャケットの確認（"jacket" にファイル名を書いた曲と、曲ID名の画像の両方に対応）
+    # ジャケットの確認
+    #   "jacket" は「拡張子つき」（cover.png）でも「拡張子なし」（cover）でもよい。
+    #   拡張子なしなら、その名前の画像がどれか1つあればOK。
     jdir = ROOT / "jackets"
     files = {p.name for p in jdir.iterdir() if p.suffix.lower() in IMG_EXT} if jdir.exists() else set()
     stems = {}
     for f in files:
         stems.setdefault(Path(f).stem, []).append(f)
-    used, missing = set(), []
+    lower_files = {f.lower(): f for f in files}
+    lower_stems = {k.lower(): k for k in stems}
+    used, missing, have, bad_jackets = set(), [], 0, []
     for s in songs:
         if not s.get("id"):
             continue
         j = s.get("jacket")
         if j:
             name = j.split("/")[-1]
-            if name in files:
-                used.add(name)
+            if name.lower().endswith(IMG_EXT):
+                found = [name] if name in files else []
+                hint = lower_files.get(name.lower())
             else:
-                print("  ✗ %s: jacket「%s」が jackets フォルダにありません（大文字小文字・拡張子も確認）" % (s["id"], j)); errors += 1
+                found = stems.get(name, [])
+                hint = lower_stems.get(name.lower())
+                hint = stems[hint][0] if hint else None
+            if found:
+                used.update(found); have += 1
+            else:
+                msg = "%s: jacket「%s」の画像が jackets フォルダにありません" % (s["id"], j)
+                if hint:
+                    msg += "（大文字小文字が違います。実際の名前は「%s」）" % hint
+                bad_jackets.append(msg); errors += 1
         elif s["id"] in stems:
-            used.update(stems[s["id"]])
+            used.update(stems[s["id"]]); have += 1
             bad = [f for f in stems[s["id"]] if Path(f).suffix != Path(f).suffix.lower()]
             if bad:
                 print("  △ %s: 拡張子が大文字です（GitHub Pages では読み込めません）→ 小文字にしてください" % ", ".join(bad)); warnings += 1
@@ -135,7 +156,10 @@ def cmd_check(_args):
     extra = sorted(files - used)
     if extra:
         print("  △ どの曲にも使われていない画像（ファイル名の誤りかも）: " + ", ".join(extra)); warnings += 1
-    have = len(seen) - len(missing)
+    for msg in bad_jackets[:8]:
+        print("  ✗ " + msg)
+    if len(bad_jackets) > 8:
+        print("  … ほか %d 件（画像を jackets に入れたか、python update.py jackets で対応づけ直してください）" % (len(bad_jackets) - 8))
 
     print("曲数: %d / エラー: %d / 注意: %d / ジャケット: %d 曲分あり・%d 曲分が未登録"
           % (len(songs), errors, warnings, have, len(missing)))
@@ -192,6 +216,92 @@ def cmd_add(args):
     return 0
 
 
+def norm_name(s):
+    """照合用に名前を整える: アクセント除去・全角半角の統一・小文字化・記号や空白や _ の除去
+    例) "à la mode" と "a_la_mode"、"Re:Flection" と "ReFlection" が同じになる"""
+    s = unicodedata.normalize("NFKD", s)
+    s = "".join(c for c in s if not unicodedata.combining(c))
+    s = unicodedata.normalize("NFKC", s).lower()
+    return re.sub(r"[\W_]+", "", s)
+
+
+def cmd_jackets(args):
+    data, ok = load_songs_file()
+    if data is None or not ok:
+        print("先に songs.json のエラーを直してください（python update.py check）。")
+        return 1
+    songs = data["songs"]
+    jdir = ROOT / "jackets"
+    files = sorted(p.name for p in jdir.iterdir() if p.suffix.lower() in IMG_EXT) if jdir.exists() else []
+    if not files:
+        print("jackets フォルダに画像がありません。")
+        return 1
+
+    # 曲ごとの照合キー（曲名・日本語表記・ID）
+    keys = {}
+    for s in songs:
+        ks = {norm_name(s.get(k, "")) for k in ("title", "ja", "id")}
+        keys[s["id"]] = {k for k in ks if k}
+
+    assigned, how = {}, {}           # 曲ID → ファイル名 / 判定方法
+    unmatched = []
+    # 1) 正規化した名前が完全に一致
+    for f in files:
+        stem = norm_name(Path(f).stem)
+        hit = [sid for sid, ks in keys.items() if stem in ks]
+        if len(hit) == 1 and hit[0] not in assigned:
+            assigned[hit[0]] = f; how[hit[0]] = "一致"
+        else:
+            unmatched.append(f)
+    # 2) 綴りが少し違う名前を候補として拾う（類似度 0.85 以上で、2位との差が十分なもの）
+    rest = []
+    for f in unmatched:
+        stem = norm_name(Path(f).stem)
+        scored = sorted(((max(difflib.SequenceMatcher(None, stem, k).ratio() for k in ks), sid)
+                         for sid, ks in keys.items() if sid not in assigned and ks), reverse=True)
+        if scored and scored[0][0] >= 0.85 and (len(scored) < 2 or scored[0][0] - scored[1][0] >= 0.05):
+            assigned[scored[0][1]] = f; how[scored[0][1]] = "類似 %.0f%%" % (scored[0][0] * 100)
+        else:
+            rest.append(f)
+    # 3) 画像も曲も1つずつ余ったときは、消去法で対応させる（確認あり）
+    left_songs = [s for s in songs if s["id"] not in assigned]
+    if len(rest) == 1 and len(left_songs) == 1:
+        s = left_songs[0]
+        print("  ? 「%s」だけが残り、曲も「%s」（%s）の1つだけが残りました。" % (rest[0], s["title"], s["id"]))
+        yes = args.yes
+        if not yes and sys.stdin.isatty():
+            yes = input("    これらを対応させますか？ [y/N] ").strip().lower() == "y"
+        if yes:
+            assigned[s["id"]] = rest[0]; how[s["id"]] = "消去法"; rest = []
+        else:
+            print("    → 対応させませんでした（--yes を付けると自動で対応させます）")
+
+    changed = 0
+    for s in songs:
+        f = assigned.get(s["id"])
+        if not f:
+            continue
+        new = f if not args.noext else Path(f).stem
+        if s.get("jacket") != new:
+            changed += 1
+        s["jacket"] = new
+        if how[s["id"]] != "一致":
+            print("  ≈ %s: %s ← %s（%s）" % (s["id"], s["title"], f, how[s["id"]]))
+
+    left_songs = [s for s in songs if s["id"] not in assigned]
+    print("画像 %d 枚 / 曲 %d 曲 → 対応づけ %d 曲（うち更新 %d）" % (len(files), len(songs), len(assigned), changed))
+    if rest:
+        print("  △ 対応する曲が見つからなかった画像: " + ", ".join(rest))
+    if left_songs:
+        print("  △ 画像が見つからなかった曲: " + ", ".join("%s（%s）" % (s["title"], s["id"]) for s in left_songs))
+    if args.dry_run:
+        print("（--dry-run のため songs.json は書き換えていません）")
+        return 0
+    SONGS.write_text(format_songs_file(data), encoding="utf-8")
+    print("songs.json を更新しました。python update.py check で確認できます。")
+    return 0
+
+
 def cmd_url(args):
     new = args.url.strip()
     if not new.startswith("https://"):
@@ -229,6 +339,11 @@ def main():
     a.add_argument("--lv", required=True, nargs=4, type=int, metavar=("MIN", "EVO", "ULT", "FBD"))
     a.add_argument("--ja", default="")
     a.set_defaults(fn=cmd_add)
+    j = sub.add_parser("jackets", help="jackets フォルダの画像を曲に自動で対応づける")
+    j.add_argument("--dry-run", action="store_true", help="書き込まず、対応の結果だけ表示する")
+    j.add_argument("--yes", action="store_true", help="消去法の対応を確認なしで採用する")
+    j.add_argument("--noext", action="store_true", help='拡張子なしで書き込む（"Alterd_Edge" のように）')
+    j.set_defaults(fn=cmd_jackets)
     u = sub.add_parser("url", help="公開URLを一括置換する")
     u.add_argument("url")
     u.set_defaults(fn=cmd_url)
