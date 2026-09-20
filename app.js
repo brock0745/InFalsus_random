@@ -87,7 +87,7 @@
   }
 
   // 画像の拡張子として扱うもの（"jacket" の値がこれで終わっていれば「拡張子つき」）
-  const IMG_EXT_RE = /\.(webp|png|jpe?g|gif|avif|bmp)$/i;
+  const IMG_EXT_RE = /\.(jpe?g|png|webp|gif|avif|bmp)$/i;
 
   // songs.json の "jacket" の値を、読み込み用のパスにする。
   //   "cover.png"       → jackets/cover.png        （ファイル名だけなら basePath を付ける）
