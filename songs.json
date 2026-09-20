@@ -3,7 +3,7 @@
   "updated": "2026-09-20",
   "note": "Cryogenic の FBD は他サイトの記載（12）を採用しています。",
   "songs": [
-    {"id": "altered-edge", "title": "Altered Edge", "artist": "satella", "arc": 1, "lv": {"MIN": 2, "EVO": 5, "ULT": 9, "FBD": 11}, "jacket": "Alterd_Edge"},
+    {"id": "altered-edge", "title": "Altered Edge", "artist": "satella", "arc": 1, "lv": {"MIN": 2, "EVO": 5, "ULT": 9, "FBD": 11}, "jacket": "Altered Edge"},
     {"id": "deep-into-the-vibe", "title": "Deep Into The Vibe", "artist": "rejection", "arc": 1, "lv": {"MIN": 3, "EVO": 6, "ULT": 10, "FBD": 12}, "jacket": "Deep_Into_The_Vibe"},
     {"id": "f0-cha0s", "title": "F0 CHA0S", "artist": "Lamanya", "arc": 1, "lv": {"MIN": 2, "EVO": 5, "ULT": 9, "FBD": 11}, "jacket": "F0_CHA0S"},
     {"id": "latent-duality", "title": "Latent Duality", "artist": "Palme", "arc": 1, "lv": {"MIN": 4, "EVO": 7, "ULT": 11, "FBD": 13}, "jacket": "Latent_Duality"},
