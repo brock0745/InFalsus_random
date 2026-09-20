@@ -1,82 +1,51 @@
-# jackets フォルダ
+# In Falsus ランダム選曲（非公式）
 
-ジャケット画像をここに入れると、結果カードに表示されます。
+In Falsus の楽曲からランダムに選曲するファンメイドのツールです。GitHub Pages でそのまま公開できます（ビルド不要）。
 
-- ファイル名は **`曲ID.webp`**（下の表の左の列）にしてください。
-- 拡張子を `png` などにしたい場合は、`app.js` 冒頭の `CONFIG.jacket.ext` を書き換えます。
-- 画像は正方形がきれいに収まります（縦横比が違うと中央で切り抜かれます）。
-- 画像が無い曲は、自動でプレースホルダー表示になります。
-- 画像の扱いは、公式の二次創作ガイドラインの範囲で行ってください。
+## フォルダ構成
 
-| 曲ID（ファイル名） | 曲名 |
-|---|---|
-| `altered-edge.webp` | Altered Edge |
-| `deep-into-the-vibe.webp` | Deep Into The Vibe |
-| `f0-cha0s.webp` | F0 CHA0S |
-| `latent-duality.webp` | Latent Duality |
-| `memories-in-noise.webp` | Memories in Noise |
-| `new-vision.webp` | New Vision |
-| `transparency.webp` | Transparency |
-| `wonderroom2-0.webp` | WonderRoom2.0 |
-| `zfc.webp` | ZFC |
-| `chronomia.webp` | Chronomia |
-| `enigma.webp` | Enigma |
-| `ffff.webp` | FFFF |
-| `greyscale-city.webp` | Greyscale City |
-| `hanabi.webp` | Hanabi |
-| `init.webp` | init() |
-| `moondiver.webp` | M / O / O / N / D / I / V / E / R |
-| `minerva.webp` | Minerva |
-| `sin-utopia.webp` | Sin Utopia |
-| `with-truth.webp` | With Truth |
-| `cylin.webp` | cylin |
-| `everything.webp` | Everything |
-| `kirapico-riot.webp` | Kirapico Riot: Kirapicorin |
-| `lights-out.webp` | Lights Out |
-| `memoire.webp` | Mémoire |
-| `neonvision.webp` | NEONViSION |
-| `papillon-blanc.webp` | papillon blanc |
-| `primeval-texture.webp` | Primeval Texture |
-| `things-i-treasure.webp` | Things I Treasure |
-| `chaoticism-legacy.webp` | Chaoticism Legacy |
-| `code-leviathan.webp` | code:Leviathan |
-| `cold-sea.webp` | Cold Sea |
-| `falling-shadow.webp` | Falling Shadow |
-| `live-fast-die-young.webp` | Live Fast Die Young |
-| `my-deadly-sins.webp` | My Deadly Sins |
-| `re-flection.webp` | Re:Flection |
-| `reconnect.webp` | Reconnect |
-| `self-confrontation.webp` | Self-confrontatioN |
-| `should-have-been.webp` | Should have been |
-| `trajectory-of-hope.webp` | Trajectory of Hope |
-| `vesper.webp` | Vesper |
-| `yggthrasir.webp` | yggthrasir |
-| `hidden-fbd15.webp` | ▓ |
-| `albedo.webp` | Albedo |
-| `chronophobia.webp` | Chronophobia |
-| `destr0yer.webp` | Destr0yer |
-| `exceed-mind-limit.webp` | EXCEED MIND LIMIT |
-| `falsequre.webp` | Falsequre |
-| `hollow.webp` | Hollow |
-| `kiretsu.webp` | KIRETSU |
-| `moonsliders.webp` | Moonsliders |
-| `noct-idea.webp` | Noct Idea |
-| `now-i-know.webp` | Now I know |
-| `outer-justice.webp` | Outer Justice |
-| `phylaxron.webp` | PhylaXron |
-| `rainshower.webp` | Rainshower |
-| `scarlet-espada.webp` | Scarlet Espada |
-| `shadows-of-unknown.webp` | Shadows of Unknown |
-| `tactom.webp` | TACTOM |
-| `toccata-funebre.webp` | Toccata Funebre |
-| `world-ender.webp` | World Ender |
-| `zetta.webp` | Zetta |
-| `a-la-mode.webp` | à la mode |
-| `be-there.webp` | Be There |
-| `cryogenic.webp` | Cryogenic |
-| `cyaegha.webp` | Cyaegha |
-| `forbidden-souls.webp` | Forbidden Souls |
-| `ghost-ray.webp` | Ghost Ray |
-| `hyalouyne.webp` | Hyaloüyne |
-| `mirinae.webp` | MIRINAE |
-| `ordirehv.webp` | Ordirehv |
+```
+index.html      画面の中身（HTML）とSEO用のメタ情報
+style.css       見た目（CSS）。色は冒頭の :root で変更
+app.js          動き（JavaScript）。設定は冒頭の CONFIG
+songs.json      曲データ（曲名・アーティスト・章・4難易度のレベル）
+sitemap.xml     検索エンジン向けのページ一覧
+update.py       songs.json の検査・曲の追加・公開URLの置換
+assets/         背景の破片・favicon・SNS共有用画像
+jackets/        ジャケット画像（webp / png / jpg。詳しくは jackets/README.md）
+```
+
+## 曲データの更新
+
+新曲が追加されたときは、`songs.json` に1行足します。
+
+```json
+{"id": "new-song", "title": "New Song", "artist": "Someone", "arc": 4, "lv": {"MIN": 3, "EVO": 6, "ULT": 10, "FBD": 12}},
+```
+
+- `arc` は Base=0、Arc 1=1、Arc 2=2、Arc 2.5=2.5、Arc 3=3、Arc 4=4。
+- 日本語表記があるときは `"ja": "..."` を足します。
+- **書式ミスに注意**: 引用符は半角の `"`、区切りのカンマ・コロンも半角、最後の要素の後ろにカンマを付けない。
+- 編集したら `python update.py check` で検査できます。コマンドで追加する場合は次のとおりです。
+
+```
+python update.py add --id new-song --title "New Song" --artist "Someone" --arc 4 --lv 3 6 10 12
+```
+
+## 手元で動かす
+
+`songs.json` を読み込むため、`index.html` をダブルクリックで開くだけでは動きません。フォルダで次を実行し、http://localhost:8000/ を開きます。
+
+```
+python -m http.server 8000
+```
+
+## 公開（GitHub Pages）
+
+1. リポジトリを作り、このフォルダの中身をすべてアップロードします。
+2. Settings → Pages → Branch を `main` / `(root)` にして Save。
+3. 公開URLが決まったら `python update.py url https://ユーザー名.github.io/リポジトリ名/` を実行し、変更をコミットします。
+
+## 保存されるデータ
+
+除外リスト・進行状況・ネタバレ確認の記録などは、利用者のブラウザ（localStorage）にだけ保存されます。サーバーには送信しません。
