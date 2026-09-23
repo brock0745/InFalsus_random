@@ -39,7 +39,7 @@
     {"id": "my-deadly-sins", "title": "My Deadly Sins", "artist": "Sta", "arc": 3, "lv": {"MIN": 2, "EVO": 6, "ULT": 9, "FBD": 12}, "jacket": "My_Deadly_Sins"},
     {"id": "re-flection", "title": "Re:Flection", "artist": "t+pazolite", "arc": 3, "lv": {"MIN": 4, "EVO": 7, "ULT": 10, "FBD": 13}, "jacket": "ReFlection"},
     {"id": "reconnect", "title": "Reconnect", "artist": "BlackY feat. Risa Yuzuki", "arc": 3, "lv": {"MIN": 2, "EVO": 5, "ULT": 9, "FBD": 11}, "jacket": "Reconnect"},
-    {"id": "self-confrontation", "title": "Self-confrontatioN", "artist": "s-don", "arc": 3, "lv": {"MIN": 3, "EVO": 6, "ULT": 10, "FBD": 12}, "jacket": "Self-confrontation"},
+    {"id": "self-confrontation", "title": "Self-confrontatioN", "artist": "s-don", "arc": 3, "lv": {"MIN": 3, "EVO": 6, "ULT": 10, "FBD": 12}, "jacket": "Self-confrontatioN"},
     {"id": "should-have-been", "title": "Should have been", "artist": "Frums", "arc": 3, "lv": {"MIN": 3, "EVO": 6, "ULT": 10, "FBD": 13}, "jacket": "should_have_been"},
     {"id": "trajectory-of-hope", "title": "Trajectory of Hope", "artist": "TAG", "arc": 3, "lv": {"MIN": 3, "EVO": 6, "ULT": 10, "FBD": 12}, "jacket": "Trajectory_of_Hope"},
     {"id": "vesper", "title": "Vesper", "artist": "Dustvoxx", "arc": 3, "lv": {"MIN": 3, "EVO": 6, "ULT": 10, "FBD": 13}, "jacket": "Vesper"},
