@@ -2,6 +2,7 @@
   "version": "v1.0.2c",
   "updated": "2026-09-20",
   "note": "Cryogenic の FBD は他サイトの記載（12）を採用しています。",
+  "packs": [{"id": "virtual-singers", "label": "Virtual Singers"}],
   "songs": [
     {"id": "altered-edge", "title": "Altered Edge", "artist": "satella", "arc": 1, "lv": {"MIN": 2, "EVO": 5, "ULT": 9, "FBD": 11}, "jacket": "Altered_Edge"},
     {"id": "deep-into-the-vibe", "title": "Deep Into The Vibe", "artist": "rejection", "arc": 1, "lv": {"MIN": 3, "EVO": 6, "ULT": 10, "FBD": 12}, "jacket": "Deep_Into_The_Vibe"},
@@ -73,10 +74,10 @@
     {"id": "hyalouyne", "title": "Hyaloüyne", "artist": "ak+q", "arc": 0, "lv": {"MIN": 3, "EVO": 6, "ULT": 10, "FBD": 12}, "jacket": "Hyalouyne"},
     {"id": "mirinae", "title": "MIRINAE", "artist": "TAK × Zekk", "arc": 0, "lv": {"MIN": 2, "EVO": 6, "ULT": 9, "FBD": 12}, "jacket": "MIRINAE"},
     {"id": "ordirehv", "title": "Ordirehv", "artist": "Feryquitous", "arc": 0, "lv": {"MIN": 1, "EVO": 4, "ULT": 8, "FBD": 10}, "jacket": "Ordirehv"},
-    {"id": "Monitoring", "title": "Monitoring", "ja": "モニタリング", "artist": "DECO*27", "pack": "Virtual Singers", "lv": {"MIN": 1, "EVO": 4, "ULT": 8, "FBD": 11}, "jacket": "モニタリング"},
-    {"id": "Lost One's Weeping", "title": "Lost One's Weeping", "ja": "ロストワンの号哭", "artist": "Neru", "pack": "Virtual Singers", "lv": {"MIN": 2, "EVO": 5, "ULT": 8, "FBD": 11}, "jacket": "ロストワンの号哭"},
-    {"id": "Non-breath oblige", "title": "Non-breath oblige", "ja": "ノンブレス・オブリージュ", "artist": "ピノキオピー", "pack": "Virtual Singers", "lv": {"MIN": 3, "EVO": 6, "ULT": 9, "FBD": 12}, "jacket": "ノンブレス・オブリージュ"},
-    {"id": "幸せになれる隠しコマンドがあるらしい", "title": "幸せになれる隠しコマンドがあるらしい", "artist": "うたたP", "pack": "Virtual Singers", "lv": {"MIN": 4, "EVO": 7, "ULT": 10, "FBD": 12}, "jacket": "モニタリング"},
-    {"id": "Roki", "title": "Roki", "ja": "ロキ", "artist": "みきとP", "pack": "Virtual Singers", "lv": {"MIN": 4, "EVO": 7, "ULT": 10, "FBD": 13}, "jacket": "ロキ"}
+    {"id": "monitoring", "title": "Monitoring", "ja": "モニタリング", "artist": "DECO*27", "pack": "virtual-singers", "lv": {"MIN": 1, "EVO": 4, "ULT": 8, "FBD": 11}, "jacket": "モニタリング"},
+    {"id": "lost-ones-weeping", "title": "Lost One's Weeping", "ja": "ロストワンの号哭", "artist": "Neru", "pack": "virtual-singers", "lv": {"MIN": 2, "EVO": 5, "ULT": 8, "FBD": 11}, "jacket": "ロストワンの号哭"},
+    {"id": "non-breath-oblige", "title": "Non-breath oblige", "ja": "ノンブレス・オブリージュ", "artist": "ピノキオピー", "pack": "virtual-singers", "lv": {"MIN": 3, "EVO": 6, "ULT": 9, "FBD": 12}, "jacket": "ノンブレス・オブリージュ"},
+    {"id": "shiawase-command", "title": "幸せになれる隠しコマンドがあるらしい", "artist": "うたたP", "pack": "virtual-singers", "lv": {"MIN": 4, "EVO": 7, "ULT": 10, "FBD": 12}, "jacket": "幸せになれる隠しコマンドがあるらしい"},
+    {"id": "roki", "title": "Roki", "ja": "ロキ", "artist": "みきとP", "pack": "virtual-singers", "lv": {"MIN": 4, "EVO": 7, "ULT": 10, "FBD": 13}, "jacket": "ロキ"}
   ]
 }
