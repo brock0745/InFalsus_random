@@ -9,6 +9,13 @@
   python update.py add --id new-song --title "New Song" --artist "Someone" --arc 4 --lv 3 6 10 12
       曲を追加します（--lv は MIN EVO ULT FBD の順）。日本語表記があれば --ja "..." も付けます。
       同じ章の最後に入り、"updated" が今日の日付になります。
+      Arc（章）の曲ではなく、パックの曲を足すときは --arc の代わりに --pack パックID を使います
+      （例: --pack virtual-singers）。パックは先に add-pack で登録してください。
+
+  python update.py add-pack --id virtual-singers --label "Virtual Singers"
+      新しいパック（Arc に属さない曲のまとまり）を songs.json に登録します。
+      表示順は「Arc をすべて数字順で並べた後ろに、登録した順」に固定されるので、
+      Arc 5 などの新しい章が後から増えても、常に全パックより手前に並びます。
 
   python update.py jackets [--dry-run] [--yes]
       jackets フォルダの画像のファイル名を読み取り、曲名などから曲を判定して
@@ -29,7 +36,6 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 SONGS = ROOT / "songs.json"
-ARCS = [0, 1, 2, 2.5, 3, 4]
 TIERS = ["MIN", "EVO", "ULT", "FBD"]
 IMG_EXT = (".webp", ".png", ".jpg", ".jpeg", ".gif", ".avif", ".bmp")
 FULLWIDTH = set("，、：；“”‘’（）［］｛｝")   # JSON の記号として使ってはいけない全角文字
@@ -91,8 +97,22 @@ def cmd_check(_args):
         print('  ✗ "songs" の配列がありません')
         return 1
 
+    # "packs"（Arc 以外のまとまり）の登録一覧を検査する
+    packs_def = data.get("packs", []) if isinstance(data, dict) else []
+    pack_ids, pack_label = set(), {}
+    if not isinstance(packs_def, list):
+        print('  ✗ "packs" は配列にしてください'); errors_top = 1
+    else:
+        errors_top = 0
+        for p in packs_def:
+            if not isinstance(p, dict) or not p.get("id") or not p.get("label"):
+                print("  ✗ packs の中に id か label が無い項目があります: %r" % (p,)); errors_top += 1; continue
+            if p["id"] in pack_ids:
+                print("  ✗ packs の id「%s」が重複しています" % p["id"]); errors_top += 1
+            pack_ids.add(p["id"]); pack_label[p["id"]] = p["label"]
+
     seen = set()
-    errors = warnings = 0
+    errors = warnings = errors_top
     for i, s in enumerate(songs, 1):
         label = "%d番目（%s）" % (i, s.get("id") or s.get("title") or "?")
         if not s.get("id") or not s.get("title"):
@@ -102,8 +122,16 @@ def cmd_check(_args):
         if s["id"] in seen:
             print("  ✗ %s: id が重複しています" % label); errors += 1
         seen.add(s["id"])
-        if s.get("arc") not in ARCS:
-            print("  ✗ %s: arc は 0 / 1 / 2 / 2.5 / 3 / 4 のどれかです（今: %r）" % (label, s.get("arc"))); errors += 1
+        has_arc, has_pack = "arc" in s, "pack" in s
+        if has_arc == has_pack:
+            print("  ✗ %s: arc か pack のどちらか一方だけを指定してください" % label); errors += 1
+        elif has_arc:
+            a = s["arc"]
+            if not isinstance(a, (int, float)) or isinstance(a, bool) or a < 0 or round(a * 2) != a * 2:
+                print("  ✗ %s: arc は 0 以上、0.5 刻みの数字にしてください（今: %r）" % (label, a)); errors += 1
+        else:
+            if s["pack"] not in pack_ids:
+                print("  ✗ %s: pack「%s」が \"packs\" に登録されていません（先に add-pack で登録してください）" % (label, s["pack"])); errors += 1
         lv = s.get("lv") or {}
         vals = []
         for t in TIERS:
@@ -161,6 +189,16 @@ def cmd_check(_args):
     if len(bad_jackets) > 8:
         print("  … ほか %d 件（画像を jackets に入れたか、python update.py jackets で対応づけ直してください）" % (len(bad_jackets) - 8))
 
+    # Arc・パックごとの曲数（新しい章やパックが正しく認識されているかの一覧）
+    from collections import Counter
+    counts = Counter(("Arc " + ("Base" if s["arc"] == 0 else str(s["arc"])) if "arc" in s
+                       else pack_label.get(s.get("pack"), "pack:" + str(s.get("pack"))))
+                      for s in songs if "arc" in s or "pack" in s)
+    print("章・パックごとの曲数: " + "　".join("%s %d曲" % (k, v) for k, v in counts.items()))
+    unused_packs = sorted(pid for pid in pack_ids if pack_label[pid] not in counts)
+    if unused_packs:
+        print("  △ 曲が1つも無いパック（登録だけ済み）: " + ", ".join(unused_packs)); warnings += 1
+
     print("曲数: %d / エラー: %d / 注意: %d / ジャケット: %d 曲分あり・%d 曲分が未登録"
           % (len(songs), errors, warnings, have, len(missing)))
     if errors or not ok:
@@ -176,6 +214,8 @@ def format_songs_file(data):
     for k, v in data.items():
         if k != "songs":
             out.append("  %s: %s," % (json.dumps(k, ensure_ascii=False), json.dumps(v, ensure_ascii=False)))
+            if k == "packs":
+                pass  # 配列だが1行にまとめて書く（曲ほど数が多くならないため）
     out.append('  "songs": [')
     n = len(data["songs"])
     for i, s in enumerate(data["songs"]):
@@ -196,23 +236,56 @@ def cmd_add(args):
     if not re.fullmatch(r"[a-z0-9-]+", args.id):
         print("id は半角の小文字・数字・ハイフンだけにしてください。")
         return 1
-    if args.arc not in ARCS:
-        print("--arc は 0 / 1 / 2 / 2.5 / 3 / 4 のどれかです。")
+    if (args.arc is None) == (args.pack is None):
+        print("--arc か --pack のどちらか一方だけを指定してください。")
+        return 1
+    if args.arc is not None and (args.arc < 0 or round(args.arc * 2) != args.arc * 2):
+        print("--arc は 0 以上、0.5 刻みの数字にしてください（例: 0, 1, 2.5）。")
+        return 1
+    pack_ids = {p.get("id") for p in data.get("packs", []) if isinstance(p, dict)}
+    if args.pack is not None and args.pack not in pack_ids:
+        print("パック「%s」は登録されていません。先に次を実行してください:" % args.pack)
+        print('  python update.py add-pack --id %s --label "表示したい名前"' % args.pack)
         return 1
     song = {"id": args.id, "title": args.title}
     if args.ja:
         song["ja"] = args.ja
     song["artist"] = args.artist
-    song["arc"] = int(args.arc) if float(args.arc).is_integer() else args.arc
+    if args.arc is not None:
+        song["arc"] = int(args.arc) if float(args.arc).is_integer() else args.arc
+        group = lambda s: s.get("arc") == song["arc"]
+    else:
+        song["pack"] = args.pack
+        group = lambda s: s.get("pack") == song["pack"]
     song["lv"] = dict(zip(TIERS, args.lv))
 
-    # 同じ章の最後の曲の後ろに挿入（なければ末尾）
-    idx = max((i for i, s in enumerate(songs) if s["arc"] == song["arc"]), default=len(songs) - 1) + 1
+    # 同じ章・同じパックの最後の曲の後ろに挿入（なければ末尾）
+    idx = max((i for i, s in enumerate(songs) if group(s)), default=len(songs) - 1) + 1
     songs.insert(idx, song)
     data["updated"] = datetime.date.today().isoformat()
     SONGS.write_text(format_songs_file(data), encoding="utf-8")
     print("追加しました:", song["title"], "→ songs.json（%d曲）" % len(songs))
     print("ジャケットは jackets/%s.（webp か png か jpg）の名前で入れるか、songs.json の jacket にファイル名を書いてください。" % args.id)
+    return 0
+
+
+def cmd_add_pack(args):
+    data, ok = load_songs_file()
+    if data is None or not ok:
+        print("先に songs.json のエラーを直してください（python update.py check）。")
+        return 1
+    packs = data.setdefault("packs", [])
+    if any(p.get("id") == args.id for p in packs):
+        print("パックID「%s」はすでにあります。" % args.id)
+        return 1
+    if not re.fullmatch(r"[a-z0-9-]+", args.id):
+        print("パックID は半角の小文字・数字・ハイフンだけにしてください。")
+        return 1
+    packs.append({"id": args.id, "label": args.label})
+    SONGS.write_text(format_songs_file(data), encoding="utf-8")
+    print("パックを登録しました: %s（%s）" % (args.label, args.id))
+    print("表示順は、既存のすべての Arc の後ろ・他のパックと同じ並び（登録した順）です。")
+    print("曲を追加するときは: python update.py add --id … --pack %s --lv … " % args.id)
     return 0
 
 
@@ -335,10 +408,15 @@ def main():
     a.add_argument("--id", required=True)
     a.add_argument("--title", required=True)
     a.add_argument("--artist", required=True)
-    a.add_argument("--arc", required=True, type=float)
+    a.add_argument("--arc", type=float, help="章の番号（Arc の曲のとき。--pack とは同時に使えません）")
+    a.add_argument("--pack", help="パックのID（Arc に属さない曲のとき。先に add-pack で登録）")
     a.add_argument("--lv", required=True, nargs=4, type=int, metavar=("MIN", "EVO", "ULT", "FBD"))
     a.add_argument("--ja", default="")
     a.set_defaults(fn=cmd_add)
+    ap_pack = sub.add_parser("add-pack", help="Arc 以外の新しいパックを登録する")
+    ap_pack.add_argument("--id", required=True, help='パックID（半角英数とハイフン。例: virtual-singers）')
+    ap_pack.add_argument("--label", required=True, help='画面に表示する名前（例: "Virtual Singers"）')
+    ap_pack.set_defaults(fn=cmd_add_pack)
     j = sub.add_parser("jackets", help="jackets フォルダの画像を曲に自動で対応づける")
     j.add_argument("--dry-run", action="store_true", help="書き込まず、対応の結果だけ表示する")
     j.add_argument("--yes", action="store_true", help="消去法の対応を確認なしで採用する")

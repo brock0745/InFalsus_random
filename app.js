@@ -34,12 +34,30 @@
 
   const TIERS = ['MIN', 'EVO', 'ULT', 'FBD'];
   const LEVELS = Array.from({ length: 15 }, (_, i) => i + 1);
-  const ARCS = [0, 1, 2, 2.5, 3, 4];
-  const ARC_LABEL = { 0: 'Base', 1: 'Arc 1', 2: 'Arc 2', 2.5: 'Arc 2.5', 3: 'Arc 3', 4: 'Arc 4' };
-  // クリア済みの章の選択肢（value = その章までの曲を対象にする）
-  const PROGRESS = [
-    [0, '未クリア'], [1, 'Arc 1'], [2, 'Arc 2'], [2.5, 'Arc 2.5'], [3, 'Arc 3'], [4, 'Arc 4']
-  ];
+
+  // 「章・パック」の一覧（PACKS）。songs.json を読み込んだ後、buildPacks() で組み立てます。
+  //   ・Arc（章）: 曲の "arc" にある数字から自動で集める。表示名も自動（0→Base、1→Arc 1 …）
+  //   ・パック   : songs.json の "packs" に書いた分だけ、書いた順に Arc の後ろへ追加
+  // 並び順は常に「Arc を数字の小さい順」→「パックを songs.json に書いた順」です。
+  //   新しい Arc（例: Arc 5）は、曲に "arc": 5 を書くだけで、Arc の並びの正しい位置に入ります。
+  //   新しいパックは、"packs" に登録するだけで、常に Arc の後ろに追加されます。
+  let PACKS = [];              // [{ key, label }, ...]（key は数値なら Arc、文字列ならパックID）
+  let RANK = new Map();        // key → 何番目か（0 が最初 = 必ず Arc 0 / Base）
+  const packKeyOf = song => song.arc !== undefined ? song.arc : song.pack;
+  const packLabel = key => { const p = PACKS[RANK.get(key)]; return p ? p.label : String(key); };
+  const rankOf = key => { const r = RANK.get(key); return r === undefined ? -1 : r; };
+
+  // songs.json の内容から PACKS / RANK を組み立てる（init() で1回呼ぶ）
+  function buildPacks(data, songs) {
+    const arcs = [...new Set(songs.map(s => s.arc).filter(a => a !== undefined))].sort((a, b) => a - b);
+    const arcPacks = arcs.map(n => ({ key: n, label: n === 0 ? 'Base' : 'Arc ' + n }));
+    const extraPacks = (data.packs || []).map(p => ({ key: p.id, label: p.label }));
+    PACKS = [...arcPacks, ...extraPacks];
+    RANK = new Map(PACKS.map((p, i) => [p.key, i]));
+  }
+
+  // 「ここまで解放」の選択肢。一番手前（必ず Arc 0 / Base）だけ「未クリア」と表示する。
+  const progressOptions = () => PACKS.map((p, i) => [p.key, i === 0 ? '未クリア' : p.label]);
 
   /* ------------------------------------------------------------------
      2. データ読み込み
@@ -63,6 +81,14 @@
   function normalizeSongs(data) {
     const list = Array.isArray(data) ? data : data && data.songs;
     if (!Array.isArray(list)) throw new Error('songs.json に "songs" 配列がありません');
+    // 曲個別の "pack" が参照できる、パックの登録一覧（"packs"）を先に検査する
+    const packDefs = Array.isArray(data.packs) ? data.packs : [];
+    const packIds = new Set();
+    for (const p of packDefs) {
+      if (!p || !p.id || !p.label) throw new Error('packs の中に id か label が無い項目があります');
+      if (packIds.has(p.id)) throw new Error('packs の id「' + p.id + '」が重複しています');
+      packIds.add(p.id);
+    }
     const seen = new Set();
     return list.map((r, i) => {
       const name = r && (r.id || r.title) ? '（' + (r.id || r.title) + '）' : '';
@@ -70,8 +96,22 @@
       if (!r || !r.id || !r.title) throw new Error(where + ': id と title は必須です');
       if (seen.has(r.id)) throw new Error(where + ': id が重複しています');
       seen.add(r.id);
-      const arc = Number(r.arc);
-      if (!ARCS.includes(arc)) throw new Error(where + ': arc は 0 / 1 / 2 / 2.5 / 3 / 4 のいずれかです');
+      // 曲は「章（arc）」と「パック（pack）」のどちらか一方だけを持つ
+      const hasArc = r.arc !== undefined && r.arc !== null;
+      const hasPack = r.pack !== undefined && r.pack !== null;
+      if (hasArc === hasPack) throw new Error(where + ': arc か pack のどちらか一方だけを指定してください');
+      let arc, pack;
+      if (hasArc) {
+        arc = Number(r.arc);
+        if (!Number.isFinite(arc) || arc < 0 || Math.round(arc * 2) !== arc * 2) {
+          throw new Error(where + ': arc は 0 以上、0.5 刻みの数字にしてください（例: 0, 1, 2.5）');
+        }
+      } else {
+        pack = String(r.pack);
+        if (!packIds.has(pack)) {
+          throw new Error(where + ': pack「' + pack + '」が songs.json の "packs" に登録されていません');
+        }
+      }
       const lv = r.lv || {};
       for (const t of TIERS) {
         if (!Number.isInteger(lv[t]) || lv[t] < 1 || lv[t] > 15) {
@@ -80,14 +120,14 @@
       }
       return {
         id: String(r.id), title: String(r.title), ja: r.ja || '', artist: r.artist || '',
-        arc, lv: { MIN: lv.MIN, EVO: lv.EVO, ULT: lv.ULT, FBD: lv.FBD },
+        arc, pack, lv: { MIN: lv.MIN, EVO: lv.EVO, ULT: lv.ULT, FBD: lv.FBD },
         jacket: typeof r.jacket === 'string' && r.jacket.trim() ? r.jacket.trim() : null
       };
     });
   }
 
   // 画像の拡張子として扱うもの（"jacket" の値がこれで終わっていれば「拡張子つき」）
-  const IMG_EXT_RE = /\.(jpe?g|png|webp|gif|avif|bmp)$/i;
+  const IMG_EXT_RE = /\.(webp|png|jpe?g|gif|avif|bmp)$/i;
 
   // songs.json の "jacket" の値を、読み込み用のパスにする。
   //   "cover.png"       → jackets/cover.png        （ファイル名だけなら basePath を付ける）
@@ -137,7 +177,7 @@
     spoiler: { skipAll: false, ackMax: 0 },
     tiers: new Set(),
     levels: new Set(),
-    arcs: new Set(),
+    packs: new Set(),        // 「章・パック」の絞り込み（値は PACKS の key）
     excluded: new Set(),        // 曲ごとの除外: id
     excludedCharts: new Set(),  // 譜面ごとの除外: "id:TIER"
     noRepeat: false,
@@ -151,23 +191,22 @@
   let rolling = false;
 
   const chartKey = (id, tier) => id + ':' + tier;
-  const visible = s => s.arc <= state.progress;
+  const visible = s => rankOf(packKeyOf(s)) <= rankOf(state.progress);
 
   function load() {
     try {
       const j = JSON.parse(localStorage.getItem(CONFIG.storageKey) || 'null');
       if (j) {
         if (j.mode === 'chart' || j.mode === 'song') state.mode = j.mode;
-        if (PROGRESS.some(p => p[0] === j.progress)) state.progress = j.progress;
+        if (RANK.has(j.progress)) state.progress = j.progress;
         if (j.spoiler && typeof j.spoiler === 'object') {
           state.spoiler.skipAll = !!j.spoiler.skipAll;
-          const a = Number(j.spoiler.ackMax);
-          state.spoiler.ackMax = ARCS.includes(a) ? a : 0;
-          if (state.spoiler.skipAll) state.spoiler.ackMax = 4;
+          state.spoiler.ackMax = RANK.has(j.spoiler.ackMax) ? j.spoiler.ackMax : 0;
+          if (state.spoiler.skipAll) state.spoiler.ackMax = PACKS[PACKS.length - 1].key;
         }
         (j.tiers || []).forEach(t => TIERS.includes(t) && state.tiers.add(t));
         (j.levels || []).forEach(l => LEVELS.includes(l) && state.levels.add(l));
-        (j.arcs || []).forEach(a => ARCS.includes(a) && state.arcs.add(a));
+        (j.packs || j.arcs || []).forEach(k => RANK.has(k) && state.packs.add(k));   // j.arcs は旧保存データの救済
         (j.excluded || []).forEach(id => BY_ID.has(id) && state.excluded.add(id));
         (j.excludedCharts || []).forEach(k => {
           const [id, t] = String(k).split(':');
@@ -179,8 +218,8 @@
         state.history = (j.history || []).filter(h => BY_ID.has(h.id)).slice(0, 10);
       }
     } catch (e) { /* 保存できない環境でも動作します */ }
-    // 確認の記録がない章は開かない（保存データが一部消えた場合の安全策）
-    if (state.progress > state.spoiler.ackMax) state.progress = 0;
+    // 確認の記録がない章・パックは開かない（保存データが一部消えた／データが変わった場合の安全策）
+    if (!RANK.has(state.progress) || rankOf(state.progress) > rankOf(state.spoiler.ackMax)) state.progress = PACKS[0].key;
     pruneFilters();
   }
 
@@ -192,7 +231,7 @@
         spoiler: state.spoiler,
         tiers: [...state.tiers],
         levels: [...state.levels],
-        arcs: [...state.arcs],
+        packs: [...state.packs],
         excluded: [...state.excluded],
         excludedCharts: [...state.excludedCharts],
         drawn: [...state.drawn],
@@ -212,7 +251,7 @@
     chartActions: $('#chartActions'), status: $('#status'),
     progressChips: $('#progressChips'), progressInfo: $('#progressInfo'),
     modeSeg: $('#modeSeg'), caption: $('#modeCaption'),
-    tierChips: $('#tierChips'), levelChips: $('#levelChips'), arcRow: $('#arcRow'), arcChips: $('#arcChips'),
+    tierChips: $('#tierChips'), levelChips: $('#levelChips'), packRow: $('#packRow'), packChips: $('#packChips'),
     poolInfo: $('#poolInfo'), clearFilters: $('#clearFilters'),
     noRepeat: $('#noRepeat'), drawnInfo: $('#drawnInfo'), resetDrawn: $('#resetDrawn'),
     exCount: $('#exCount'), q: $('#q'), exView: $('#exView'), exClear: $('#exClear'),
@@ -255,7 +294,7 @@
   }
   const norm = s => String(s).normalize('NFKC').toLowerCase();
   const tierClass = t => 'tier-' + t.toLowerCase();
-  const anyFilter = () => state.tiers.size > 0 || state.levels.size > 0 || state.arcs.size > 0;
+  const anyFilter = () => state.tiers.size > 0 || state.levels.size > 0 || state.packs.size > 0;
 
   // 進行状況で見えている曲のうち、最も高いレベル（それ以上のレベルは選択肢ごと隠す）
   function visibleMaxLevel() {
@@ -265,7 +304,7 @@
   }
   function pruneFilters() {
     const maxLv = visibleMaxLevel();
-    [...state.arcs].forEach(a => { if (a > state.progress) state.arcs.delete(a); });
+    [...state.packs].forEach(k => { if (!RANK.has(k) || rankOf(k) > rankOf(state.progress)) state.packs.delete(k); });
     [...state.levels].forEach(l => { if (l > maxLv) state.levels.delete(l); });
   }
 
@@ -278,8 +317,8 @@
     return (!tierSet.size || tierSet.has(tier)) && (!levelSet.size || levelSet.has(song.lv[tier]));
   }
   // 曲が対象範囲か（進行状況・章の絞り込み・曲ごとの除外）
-  function inScope(song, arcSet = state.arcs) {
-    return visible(song) && !state.excluded.has(song.id) && (!arcSet.size || arcSet.has(song.arc));
+  function inScope(song, packSet = state.packs) {
+    return visible(song) && !state.excluded.has(song.id) && (!packSet.size || packSet.has(packKeyOf(song)));
   }
 
   function computePools(applyNoRepeat) {
@@ -292,10 +331,10 @@
     return { charts, songs: [...new Set(charts.map(c => c.song))] };
   }
 
-  function chartCount(tierSet, levelSet, arcSet) {
+  function chartCount(tierSet, levelSet, packSet) {
     let n = 0;
     for (const s of SONGS) {
-      if (!inScope(s, arcSet)) continue;
+      if (!inScope(s, packSet)) continue;
       for (const t of TIERS) if (chartMatches(s, t, tierSet, levelSet)) n++;
     }
     return n;
@@ -391,7 +430,7 @@
 
   async function paint(song, pickedTier, opts = {}) {
     els.stage.style.setProperty('--h', hue(song.id));
-    els.arc.textContent = ARC_LABEL[song.arc];
+    els.arc.textContent = packLabel(packKeyOf(song));
     els.ja.textContent = song.ja || '';
     els.artist.textContent = song.artist;
     setJacket(song);
@@ -556,12 +595,12 @@
   //       Arc 4 を確認済みなら、全章で出ない。
   async function requestProgress(v) {
     if (v === state.progress) return;
-    const needAsk = v > 0 && !state.spoiler.skipAll && v > state.spoiler.ackMax;
+    const needAsk = rankOf(v) > 0 && !state.spoiler.skipAll && rankOf(v) > rankOf(state.spoiler.ackMax);
     if (needAsk) {
       const r = await askSpoiler(v);
       if (!r) return;                                   // 「やめる」
-      if (r.skip) { state.spoiler.skipAll = true; state.spoiler.ackMax = 4; }
-      else state.spoiler.ackMax = Math.max(state.spoiler.ackMax, v);
+      if (r.skip) { state.spoiler.skipAll = true; state.spoiler.ackMax = PACKS[PACKS.length - 1].key; }
+      else if (rankOf(v) > rankOf(state.spoiler.ackMax)) state.spoiler.ackMax = v;
     }
     setProgress(v);
   }
@@ -570,7 +609,7 @@
   function askSpoiler(v) {
     return new Promise(resolve => {
       const dlg = els.spDlg;
-      els.spTitle.textContent = ARC_LABEL[v] + ' までの曲を表示';
+      els.spTitle.textContent = packLabel(v) + ' までの曲を表示';
       els.spSkip.checked = false;
       const finish = ok => {
         const skip = els.spSkip.checked;
@@ -586,19 +625,19 @@
   }
 
   function renderProgress() {
-    els.progressChips.replaceChildren(...PROGRESS.map(([v, label]) => h('button', {
+    els.progressChips.replaceChildren(...progressOptions().map(([v, label]) => h('button', {
       class: 'chip', type: 'button', role: 'radio',
       'aria-checked': String(v === state.progress), 'aria-pressed': String(v === state.progress),
       text: label, onclick: () => requestProgress(v)
     })));
     const n = SONGS.filter(visible).length;
     const hiddenN = SONGS.length - n;
-    const last = ARC_LABEL[state.progress];
-    const text = state.progress === 0
+    const rank = rankOf(state.progress);
+    const text = rank === 0
       ? '最初から遊べる Base の' + n + '曲が対象です'
-      : state.progress === 4
+      : rank === PACKS.length - 1
         ? '全' + n + '曲が対象です'
-        : 'Base〜' + last + ' の' + n + '曲が対象です';
+        : 'Base〜' + packLabel(state.progress) + ' の' + n + '曲が対象です';
     els.progressInfo.replaceChildren(
       text,
       h('span', { class: 'redact', 'aria-hidden': hiddenN ? null : 'true' },
@@ -616,7 +655,7 @@
   function renderFilters() {
     els.tierChips.replaceChildren(...TIERS.map(t => {
       const on = state.tiers.has(t);
-      const empty = chartCount(new Set([t]), state.levels, state.arcs) === 0;
+      const empty = chartCount(new Set([t]), state.levels, state.packs) === 0;
       return h('button', {
         class: 'chip ' + tierClass(t) + (empty ? ' empty' : ''), type: 'button',
         'aria-pressed': String(on), text: t,
@@ -627,7 +666,7 @@
     const maxLv = visibleMaxLevel();
     els.levelChips.replaceChildren(...LEVELS.filter(l => l <= maxLv).map(l => {
       const on = state.levels.has(l);
-      const empty = chartCount(state.tiers, new Set([l]), state.arcs) === 0;
+      const empty = chartCount(state.tiers, new Set([l]), state.packs) === 0;
       return h('button', {
         class: 'chip' + (empty ? ' empty' : ''), type: 'button',
         'aria-pressed': String(on), text: String(l),
@@ -635,16 +674,16 @@
       });
     }));
 
-    // 章の絞り込み: 進行状況までの章だけ表示（Base のみなら行ごと隠す）
-    const arcs = ARCS.filter(a => a <= state.progress);
-    els.arcRow.hidden = arcs.length <= 1;
-    els.arcChips.replaceChildren(...arcs.map(a => {
-      const on = state.arcs.has(a);
-      const empty = chartCount(state.tiers, state.levels, new Set([a])) === 0;
+    // 章・パックの絞り込み: 進行状況までの分だけ表示（1件だけなら行ごと隠す）
+    const visiblePacks = PACKS.filter((p, i) => i <= rankOf(state.progress));
+    els.packRow.hidden = visiblePacks.length <= 1;
+    els.packChips.replaceChildren(...visiblePacks.map(p => {
+      const on = state.packs.has(p.key);
+      const empty = chartCount(state.tiers, state.levels, new Set([p.key])) === 0;
       return h('button', {
         class: 'chip' + (empty ? ' empty' : ''), type: 'button',
-        'aria-pressed': String(on), text: ARC_LABEL[a],
-        onclick: () => { on ? state.arcs.delete(a) : state.arcs.add(a); onFilterChange(); }
+        'aria-pressed': String(on), text: p.label,
+        onclick: () => { on ? state.packs.delete(p.key) : state.packs.add(p.key); onFilterChange(); }
       });
     }));
 
@@ -687,7 +726,7 @@
         },
           h('span', { class: 'xt' },
             h('b', { text: s.title + (s.ja ? '　' + s.ja : '') }),
-            h('small', { text: s.artist + '　' + ARC_LABEL[s.arc] })),
+            h('small', { text: s.artist + '　' + packLabel(packKeyOf(s)) })),
           h('span', { class: 'xmark', 'aria-hidden': 'true' })),
         h('div', { class: 'xcharts' }, TIERS.map(t => {
           const off = state.excludedCharts.has(chartKey(s.id, t));
@@ -792,7 +831,7 @@
     renderModeUI();
   });
   els.clearFilters.addEventListener('click', () => {
-    state.tiers.clear(); state.levels.clear(); state.arcs.clear();
+    state.tiers.clear(); state.levels.clear(); state.packs.clear();
     onFilterChange();
   });
   els.noRepeat.addEventListener('click', () => { state.noRepeat = !state.noRepeat; save(); renderPool(); });
@@ -855,6 +894,7 @@
     try {
       const data = await loadData();
       SONGS = normalizeSongs(data);
+      buildPacks(data, SONGS);
       BY_ID = new Map(SONGS.map(s => [s.id, s]));
       const info = [];
       if (data.version) info.push('曲データ: ' + data.version + ' 時点');
@@ -876,6 +916,7 @@
   window.IFR = {
     CONFIG, state,
     get songs() { return SONGS; },
+    get packs() { return PACKS; },
     jacketCandidates,
     ids: () => SONGS.map(s => s.id + '\t' + s.title).join('\n')
   };
